@@ -1,59 +1,87 @@
-# DemoSortableTree
+# Demo: Sortable Org Tree (POC)
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.14.
+POC สำหรับฟีเจอร์ **จัดลำดับขั้น/ผังองค์กรแบบลากวาง** — ลากหน่วยงานจาก "คลัง" ด้านซ้าย
+มาวางใน "โซนจัดผัง" ด้านขวา แล้วลากเยื้องเพื่อกำหนดความสัมพันธ์แม่–ลูก (รองรับการซ้อนหลายชั้นไม่จำกัด)
 
-## Development server
+> เป้าหมายของ POC: พิสูจน์ว่าแนวทางลากวางนี้ทำงานได้จริงและนำไปประกอบกับโปรเจกต์หลัก
+> (PrimeNG / UltimaNG) ได้ — **ไม่ได้เน้นความสวยของ UI**
 
-To start a local development server, run:
+## ทำอะไรได้บ้าง
 
-```bash
-ng serve
-```
+- ลากหน่วยงานจากคลัง (ซ้าย) → โซนจัดผัง (ขวา) และลากกลับเพื่อเอาออก
+- **ลากไปทางขวา = เป็นลูก** / **ลากไปทางซ้าย = เลื่อนขึ้นเป็นแม่**
+- ปุ่ม ◂ / ▸ ปรับระดับ **ทั้งกิ่ง** (พร้อมลูกหลาน) — ทางเลือกเพิ่มเติมและช่วยเรื่อง accessibility
+- ลากสลับลำดับภายในโซนขวา
+- **ซ้อนเป็นลูกได้ไม่จำกัดชั้น** (จำกัดเพียงว่าแต่ละแถวลึกได้ทีละ 1 ระดับเทียบกับแถวเหนือมัน
+  เพื่อให้เป็นโครงต้นไม้ที่ถูกต้อง)
+- ปุ่มคืนค่าเริ่มต้น + ตัวนับจำนวนที่จัดแล้ว
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+## เทคโนโลยีที่ใช้
 
-## Code scaffolding
+| Library | ใช้ทำอะไร |
+|---|---|
+| **Angular 21** (standalone + signals) | framework หลัก |
+| **@angular/cdk** — Drag & Drop | **หัวใจของการลากวาง** (`cdkDropList`, `cdkDrag`, `moveItemInArray`, `transferArrayItem`) |
+| **PrimeNG 21** + **@primeuix/themes** (Aura) | ปุ่ม (`p-button`) + ระบบธีม |
+| **PrimeIcons** | ไอคอน (`pi pi-sitemap`, `pi pi-users`, ลูกศรเยื้อง ฯลฯ) |
+| **Tailwind CSS 4** | จัด layout / สไตล์ |
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+> หมายเหตุ: เริ่มแรกลองใช้ **PrimeNG Tree** ก่อน แต่การลากไม่ลื่นและดึงลูกออกมาเป็น root ไม่ได้
+> จึงเปลี่ยนมาใช้ **Angular CDK** ซึ่งคุมพฤติกรรมการลากได้เองทั้งหมด ส่วน PrimeNG ใช้แค่ปุ่ม/ธีม
 
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+## วิธีรัน
 
 ```bash
-ng test
+npm install
+npm start
 ```
 
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
+เปิด `http://localhost:4200`
 
 ```bash
-ng e2e
+npm run build   # production build
+npm test        # unit test (vitest)
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+## แนวคิด/กลไกหลัก
 
-## Additional Resources
+ใช้ **flat list + ค่า `depth`** แทนการเก็บโครงสร้าง tree ซ้อนจริง — เป็นกุญแจที่ทำให้ลากง่ายและซ้อนได้ไม่จำกัด:
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+```
+[ ฝ่าย A      depth 0 ]   ← root
+[ ฝ่าย B      depth 1 ]   ← ลูกของ A
+[ แผนก C      depth 2 ]   ← หลาน (ลูกของ B)
+```
+
+- **2 โซนเชื่อมกันด้วย** `[cdkDropListConnectedTo]` → ลากข้ามซ้าย–ขวา (`transferArrayItem`)
+  และลากสลับลำดับในโซนเดียวกัน (`moveItemInArray`)
+- **ลากขวา = เป็นลูก** → อ่านระยะลากแนวนอน `event.distance.x` หารด้วยระยะเยื้องต่อระดับ
+  (`INDENT_PX`) ได้จำนวนชั้นที่จะเยื้อง แล้วบวกเข้า `depth`
+- **แม่ของแต่ละแถว** = แถวก่อนหน้าที่ใกล้สุดซึ่ง `depth` ตื้นกว่า 1 ระดับ (ไม่ได้เก็บ `parentId` ตรงๆ)
+- **`normalizeDepths()`** คุมความถูกต้องทุกครั้งหลังลาก: แถวแรกต้อง `depth = 0`
+  และห้ามแถวใดลึกเกิน "แถวบน + 1" → กันการกระโดดข้ามชั้น แต่ไม่จำกัดความลึกรวม
+- จัดการ state ด้วย **Angular signals** (`signal` / `computed`) + `ChangeDetectionStrategy.OnPush`
+
+## โครงสร้างไฟล์ที่เกี่ยวข้อง
+
+```
+src/
+├─ app/
+│  ├─ org-tree/
+│  │  └─ org-tree.ts      # component หลัก (logic + template + style รวมในไฟล์เดียว)
+│  ├─ app.config.ts       # ลงทะเบียน providePrimeNG + theme preset (Aura)
+│  ├─ app.ts / app.html   # mount <app-org-tree />
+└─ styles.css             # import 'primeicons' + tailwind
+```
+
+## การนำไปใช้กับโปรเจกต์หลัก (UltimaNG)
+
+- **Drag-drop logic (CDK)** ย้ายไปได้เลย ไม่ผูกกับธีม และ `@angular/cdk` มากับ PrimeNG อยู่แล้ว
+- **`p-button` / PrimeIcons** รับสไตล์จาก preset ของ Ultima เองอัตโนมัติ
+- **สี/สไตล์ที่เป็น Tailwind classes** ต้องปรับ — แนะนำเปลี่ยนไปใช้ PrimeNG design tokens
+  (`--p-primary-color`, `--p-content-*`, `--p-text-*`) เพื่อให้กลมกลืนกับธีม
+  หรือถ้าโปรเจกต์หลักไม่ได้เปิด Tailwind ให้แปลงเป็น CSS/SCSS ปกติ
+
+---
+
+POC นี้สร้างขึ้นเพื่อประเมินความเป็นไปได้ของฟีเจอร์ก่อนนำไป implement จริง
