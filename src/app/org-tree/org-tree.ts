@@ -73,6 +73,11 @@ function initialPalette(): OrgItem[] {
   return seed.map(([id, name, kind]) => ({ id, name, kind, depth: 0 }));
 }
 
+/** สถานะเริ่มต้น: ทุกหน่วยงานกองอยู่ในคลังซ้าย (แบนราบ) และโซนขวาว่างเปล่า */
+function allInPalette(): OrgItem[] {
+  return [...initialPlaced(), ...initialPalette()].map((it) => ({ ...it, depth: 0 }));
+}
+
 /** บังคับให้โครงเยื้องถูกต้อง: แถวแรก depth 0 และห้ามลึกเกินแถวก่อนหน้า +1 */
 function normalizeDepths(list: OrgItem[]): void {
   for (let i = 0; i < list.length; i++) {
@@ -267,8 +272,8 @@ function continuesAtDepth(list: OrgItem[], i: number, t: number): boolean {
 export class OrgTree {
   protected readonly total = initialPlaced().length + initialPalette().length;
 
-  protected readonly paletteItems = signal<OrgItem[]>(initialPalette());
-  protected readonly placed = signal<OrgItem[]>(initialPlaced());
+  protected readonly paletteItems = signal<OrgItem[]>(allInPalette());
+  protected readonly placed = signal<OrgItem[]>([]);
 
   /** มุมมองโซนขวา: เติมข้อมูลแม่/ปุ่ม/เส้นโครงสร้างให้แต่ละแถว */
   protected readonly rows = computed<PlacedRow[]>(() => {
@@ -332,8 +337,8 @@ export class OrgTree {
   }
 
   protected reset(): void {
-    this.paletteItems.set(initialPalette());
-    this.placed.set(initialPlaced());
+    this.paletteItems.set(allInPalette());
+    this.placed.set([]);
   }
 
   /** สร้างชนิดเส้นของแต่ละช่องเยื้องสำหรับแถว i */
